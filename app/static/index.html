@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PlastiSense AI — Microplastic Detection</title>
+  <meta name="description" content="Detect and classify microplastics using dual deep learning models: 1D-CNN spectral analysis and ResNet-18 image classification.">
+  <link rel="stylesheet" href="/static/style.css">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🔬</text></svg>">
+</head>
+<body>
+
+<div class="app-container">
+
+  <!-- ═══ Header ═══ -->
+  <header class="header">
+    <div class="header__brand">
+      <div class="header__icon">🔬</div>
+      <h1 class="header__title">PlastiSense AI</h1>
+    </div>
+    <p class="header__tagline">Microplastic Detection Powered by Deep Learning</p>
+  </header>
+
+  <!-- ═══ Model Status ═══ -->
+  <div class="status-bar" id="statusBar">
+    <div class="status-badge status-badge--loading" id="statusResnet">
+      <span class="status-dot"></span>
+      ResNet-18 — Loading…
+    </div>
+    <div class="status-badge status-badge--loading" id="statusCnn">
+      <span class="status-dot"></span>
+      1D-CNN — Loading…
+    </div>
+  </div>
+
+  <!-- ═══ Upload Section ═══ -->
+  <section class="upload-section">
+
+    <!-- Image Upload Card -->
+    <div class="card" id="imageCard">
+      <div class="card__header">
+        <div class="card__icon card__icon--image">🖼️</div>
+        <div>
+          <div class="card__title">Image Analysis</div>
+          <div class="card__subtitle">ResNet-18 Visual Classification</div>
+        </div>
+      </div>
+
+      <input type="file" id="imageInput" accept=".jpg,.jpeg,.png,.bmp,.tiff" style="display:none">
+      <div class="dropzone" id="imageDropzone">
+        <div class="dropzone__icon">📤</div>
+        <div class="dropzone__text">
+          Drop microscope image here or <strong id="imageBrowse">browse</strong>
+        </div>
+        <div class="dropzone__formats">JPG, PNG up to 10 MB</div>
+      </div>
+
+      <div class="file-preview" id="imagePreview">
+        <img class="file-preview__thumb" id="imageThumb" src="" alt="Preview">
+        <div class="file-preview__info">
+          <div class="file-preview__name" id="imageName">—</div>
+          <div class="file-preview__size" id="imageSize">—</div>
+        </div>
+        <button class="file-preview__remove" id="imageRemove" title="Remove file">✕</button>
+      </div>
+
+      <button class="analyze-btn analyze-btn--image" id="imageAnalyzeBtn" disabled>
+        <span class="spinner"></span>
+        <span class="btn-text">Analyze Image</span>
+      </button>
+    </div>
+
+    <!-- Spectral Upload Card -->
+    <div class="card" id="spectralCard">
+      <div class="card__header">
+        <div class="card__icon card__icon--spectral">📊</div>
+        <div>
+          <div class="card__title">Spectral Analysis</div>
+          <div class="card__subtitle">1D-CNN Hyperspectral Classification</div>
+        </div>
+      </div>
+
+      <input type="file" id="spectralInput" accept=".csv" style="display:none">
+      <div class="dropzone" id="spectralDropzone">
+        <div class="dropzone__icon">📤</div>
+        <div class="dropzone__text">
+          Drop spectral CSV here or <strong id="spectralBrowse">browse</strong>
+        </div>
+        <div class="dropzone__formats">CSV with 256 reflectance channels</div>
+      </div>
+
+      <div class="file-preview" id="spectralPreview">
+        <div class="file-preview__thumb" style="display:flex;align-items:center;justify-content:center;background:var(--bg-input);font-size:22px;">📄</div>
+        <div class="file-preview__info">
+          <div class="file-preview__name" id="spectralName">—</div>
+          <div class="file-preview__size" id="spectralSize">—</div>
+        </div>
+        <button class="file-preview__remove" id="spectralRemove" title="Remove file">✕</button>
+      </div>
+
+      <button class="analyze-btn analyze-btn--spectral" id="spectralAnalyzeBtn" disabled>
+        <span class="spinner"></span>
+        <span class="btn-text">Analyze Spectrum</span>
+      </button>
+    </div>
+
+  </section>
+
+  <!-- ═══ Results Section ═══ -->
+  <section class="results-section" id="resultsSection">
+    <div class="results-card">
+      <div class="results__header">
+        <div class="results__title">Detection Result</div>
+        <div id="resultsModelTag" class="results__model-tag results__model-tag--resnet">ResNet-18</div>
+      </div>
+
+      <!-- Classification -->
+      <div class="classification">
+        <div class="classification__label">Identified Polymer</div>
+        <div class="classification__polymer" id="resultPolymer">—</div>
+        <div class="classification__fullname" id="resultFullname">—</div>
+      </div>
+
+      <!-- Confidence bar -->
+      <div class="confidence">
+        <div class="confidence__header">
+          <span class="confidence__label">Confidence</span>
+          <span class="confidence__value" id="confidenceValue">—</span>
+        </div>
+        <div class="confidence__bar-bg">
+          <div class="confidence__bar-fill" id="confidenceBar"></div>
+        </div>
+      </div>
+
+      <!-- Stats row -->
+      <div class="stats-row">
+        <div class="stat-box">
+          <div class="stat-box__label">Processing Time</div>
+          <div class="stat-box__value" id="statTime">—</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-box__label">Model Used</div>
+          <div class="stat-box__value" id="statModel">—</div>
+        </div>
+      </div>
+
+      <!-- Probability distribution -->
+      <div class="probabilities">
+        <div class="probabilities__title">Class Probabilities</div>
+        <div class="prob-bar">
+          <span class="prob-bar__label">PE</span>
+          <div class="prob-bar__track"><div class="prob-bar__fill prob-bar__fill--PE" id="probPE"></div></div>
+          <span class="prob-bar__value" id="probPEVal">0%</span>
+        </div>
+        <div class="prob-bar">
+          <span class="prob-bar__label">PET</span>
+          <div class="prob-bar__track"><div class="prob-bar__fill prob-bar__fill--PET" id="probPET"></div></div>
+          <span class="prob-bar__value" id="probPETVal">0%</span>
+        </div>
+        <div class="prob-bar">
+          <span class="prob-bar__label">PP</span>
+          <div class="prob-bar__track"><div class="prob-bar__fill prob-bar__fill--PP" id="probPP"></div></div>
+          <span class="prob-bar__value" id="probPPVal">0%</span>
+        </div>
+        <div class="prob-bar">
+          <span class="prob-bar__label">PS</span>
+          <div class="prob-bar__track"><div class="prob-bar__fill prob-bar__fill--PS" id="probPS"></div></div>
+          <span class="prob-bar__value" id="probPSVal">0%</span>
+        </div>
+      </div>
+
+      <!-- Dual model agreement -->
+      <div class="dual-agreement" id="dualAgreement"></div>
+
+    </div>
+  </section>
+
+  <!-- ═══ History Section ═══ -->
+  <section class="history-section" id="historySection" style="display:none;">
+    <div class="history__title">🕘 Scan History</div>
+    <div class="history__list" id="historyList"></div>
+  </section>
+
+  <!-- ═══ Footer ═══ -->
+  <footer class="footer">
+    Built with PyTorch &nbsp;·&nbsp; 1D-CNN + ResNet-18 Dual Pipeline &nbsp;·&nbsp; PlastiSense AI
+  </footer>
+
+</div>
+
+<script src="/static/app.js"></script>
+</body>
+</html>
